@@ -1,0 +1,75 @@
+set dotenv-load := false
+
+default:
+    @just --list
+
+inventory:
+    ./scripts/inventory.sh
+
+install-deps:
+    ./scripts/install_deps.sh
+
+install-uv-python:
+    ./scripts/install_uv_python.sh
+
+install-extended-toolsets:
+    ./scripts/install_extended_toolsets.sh
+
+download-sdks:
+    ./scripts/download_sdks.sh
+
+download-gated-sdks:
+    ./scripts/download_nvidia_gated_sdks_with_bw.sh
+
+cleanup-video-codec-headers:
+    ./scripts/cleanup_unofficial_video_codec_headers.sh
+
+store-bw-session:
+    ./scripts/bw_session.sh store-session
+
+store-bw-env:
+    ./scripts/bw_session.sh store-env
+
+bw-status:
+    ./scripts/bw_session.sh status
+
+validate-toolsets:
+    ./scripts/validate_toolsets.sh
+
+build-ffmpeg:
+    ./scripts/build_ffmpeg.sh
+
+validate-ffmpeg:
+    ./scripts/validate_ffmpeg.sh
+
+build-opencv:
+    ./scripts/build_opencv.sh
+
+validate-opencv:
+    ./scripts/validate_opencv.sh
+
+install-python-stack:
+    ./scripts/install_python_stack.sh
+
+install-triton-stack:
+    ./scripts/install_triton_stack.sh
+
+validate-triton-stack:
+    ./scripts/validate_triton_stack.sh
+
+validate-ai-audio-stack:
+    ./scripts/validate_ai_audio_stack.sh
+
+benchmark:
+    ./scripts/benchmark.sh
+
+debug-report:
+    ./scripts/debug_report.sh
+
+all: inventory install-deps install-uv-python install-extended-toolsets download-sdks download-gated-sdks validate-toolsets build-ffmpeg validate-ffmpeg build-opencv validate-opencv install-python-stack install-triton-stack validate-triton-stack validate-ai-audio-stack benchmark debug-report
+
+clean-builds:
+    ./scripts/clean_builds.sh
+
+purge-install:
+    ./scripts/purge_install.sh

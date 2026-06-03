@@ -1,0 +1,60 @@
+# Local/editor state
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Secrets and credentials
+.env
+.env.*
+*.secret
+*.secrets
+*token*
+*cookie*
+bwpass
+bwpass.*
+BW_SESSION
+
+# Generated GB10 local artifacts
+gb10-cuda/reports/*
+!gb10-cuda/reports/README.md
+gb10-cuda/logs/
+gb10-cuda/state/
+gb10-cuda/build/
+gb10-cuda/install/
+gb10-cuda/src/
+gb10-cuda/venvs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.venv/
+venv/
+
+# Native build outputs
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.so.*
+
+# Large/generated assets
+*.mp4
+*.mov
+*.mkv
+*.onnx
+*.engine
+*.plan
+*.safetensors
+*.pt
+*.pth
+*.zip
+*.tar
+*.tar.gz
+*.tgz
