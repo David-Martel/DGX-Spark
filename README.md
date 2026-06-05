@@ -53,6 +53,10 @@ Read `gb10-cuda/TODO.md` for the current validated state and remaining gap
 work. Generated reports are intentionally ignored by Git; publish only sanitized
 summaries.
 
+RealSense (D400) GPU-acceleration + USB-controller hardening findings on GB10 are
+summarized in [`docs/GB10_REALSENSE_FINDINGS.md`](docs/GB10_REALSENSE_FINDINGS.md);
+full HIL detail lives in the `external/librealsense` submodule under `docs/gb10/`.
+
 ## Public-Repo Hygiene
 
 Do not commit:
