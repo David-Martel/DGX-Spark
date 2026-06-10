@@ -10,6 +10,9 @@
 ## Subprojects
 
 - `gb10-cuda/` - DGX Spark / GB10 CUDA media and AI acceleration framework.
+- `qsfp-cluster/` - NVIDIA Sync-backed QSFP/ConnectX-7 cluster automation,
+  generated artifact handling, verification runbook, and optional user systemd
+  timer units.
 - `external/librealsense/` - submodule for David-Martel RealSense
   customizations.
 

@@ -8,6 +8,8 @@ This repository starts with two surfaces:
 
 - `gb10-cuda/` - reusable FFmpeg, OpenCV, CUDA, Python, Triton, TensorRT, and
   NVIDIA media-tooling scripts developed on the DGX Spark host.
+- `qsfp-cluster/` - NVIDIA Sync-backed QSFP/ConnectX-7 detection,
+  configuration, verification, and RDMA validation for multi-Spark clusters.
 - `external/librealsense/` - Git submodule pointing at
   `David-Martel/librealsense` for RealSense customizations.
 
@@ -52,6 +54,24 @@ just debug-report
 Read `gb10-cuda/TODO.md` for the current validated state and remaining gap
 work. Generated reports are intentionally ignored by Git; publish only sanitized
 summaries.
+
+## QSFP / ConnectX-7 Cluster Automation
+
+Use `qsfp-cluster/bin/spark_qsfp_cluster.sh` to wrap NVIDIA Sync Cluster
+Assistant with repeatable preflight, detection, Netplan backups, conflict
+cleanup, verification, and RDMA checks:
+
+```bash
+./qsfp-cluster/bin/spark_qsfp_cluster.sh doctor
+./qsfp-cluster/bin/spark_qsfp_cluster.sh detect
+./qsfp-cluster/bin/spark_qsfp_cluster.sh configure --apply --clean-conflicts --cluster-ssh
+./qsfp-cluster/bin/spark_qsfp_cluster.sh verify
+./qsfp-cluster/bin/spark_qsfp_cluster.sh rdma-test
+```
+
+See [`qsfp-cluster/README.md`](qsfp-cluster/README.md) for the supported
+NVIDIA topology model, alias conventions, reboot recovery, rollback guidance,
+and VIGIL/NCCL environment variables.
 
 RealSense (D400) GPU-acceleration + USB-controller hardening findings on GB10 are
 summarized in [`docs/GB10_REALSENSE_FINDINGS.md`](docs/GB10_REALSENSE_FINDINGS.md);

@@ -25,6 +25,7 @@ gb10-cuda/build/
 gb10-cuda/install/
 gb10-cuda/src/
 gb10-cuda/venvs/
+qsfp-cluster/artifacts/
 
 # Python
 __pycache__/
