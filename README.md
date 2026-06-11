@@ -45,6 +45,9 @@ just build-ffmpeg
 just build-opencv
 just install-triton-stack
 just validate-triton-stack
+just install-inference-accel-stack
+just validate-inference-accel-stack
+just audit-torch-envs
 just benchmark
 just debug-report
 ```
@@ -75,6 +78,8 @@ The local DGX Spark host has validated:
 - Python 3.13 compatibility venv for PyNvVideoCodec
 - NVIDIA Triton Inference Server Arm container smoke
 - TensorRT/ONNX system Python bindings
+- uv-managed inference acceleration lane for ONNX, ONNXScript, TensorRT Python
+  wheels, Torch-TensorRT import validation, and FlashAttention smoke checks
 - Riva client package import path
 
 The remaining work is tracked in `gb10-cuda/TODO.md`.
