@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Shared package policy for the DGX Spark / GB10 inference acceleration lane.
+
+export GB10_INFERENCE_PYTHON="${GB10_INFERENCE_PYTHON:-cpython-3.13.13-linux-aarch64-gnu}"
+export GB10_PROJECT_PYTHON="${GB10_PROJECT_PYTHON:-3.13.13}"
+export GB10_TORCH_VERSION_SPEC="${GB10_TORCH_VERSION_SPEC:-2.12.*}"
+export GB10_TORCHVISION_VERSION_SPEC="${GB10_TORCHVISION_VERSION_SPEC:-0.27.*}"
+export GB10_TRITON_VERSION_SPEC="${GB10_TRITON_VERSION_SPEC:-3.7.*}"
+export GB10_TENSORRT_VERSION_SPEC="${GB10_TENSORRT_VERSION_SPEC:->=11,<12}"
+export GB10_TORCH_TENSORRT_TENSORRT_VERSION_SPEC="${GB10_TORCH_TENSORRT_TENSORRT_VERSION_SPEC:->=10.16,<10.17}"
+export GB10_TORCH_TENSORRT_VERSION_SPEC="${GB10_TORCH_TENSORRT_VERSION_SPEC:-2.12.*}"
+export GB10_ONNX_VERSION_SPEC="${GB10_ONNX_VERSION_SPEC:->=1.21,<2}"
+export GB10_ONNXSCRIPT_VERSION_SPEC="${GB10_ONNXSCRIPT_VERSION_SPEC:->=0.7,<1}"
+export GB10_CUDA_PYTHON_VERSION_SPEC="${GB10_CUDA_PYTHON_VERSION_SPEC:->=13.3,<13.4}"
+export GB10_CUDA_TOOLKIT_VERSION_SPEC="${GB10_CUDA_TOOLKIT_VERSION_SPEC:-==13.0.2}"
+export GB10_FLASHINFER_VERSION_SPEC="${GB10_FLASHINFER_VERSION_SPEC:->=0.6.12,<0.7}"
+export GB10_FLASH_ATTN_MAX_JOBS="${GB10_FLASH_ATTN_MAX_JOBS:-4}"
+export GB10_FLASH_ATTN_NVCC_THREADS="${GB10_FLASH_ATTN_NVCC_THREADS:-1}"
+
+gb10_accel_export_env() {
+  export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+  export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-12.1a}"
+  export TRITON_PTXAS_PATH="${TRITON_PTXAS_PATH:-$CUDA_HOME/bin/ptxas}"
+  export MAX_JOBS="${MAX_JOBS:-$GB10_FLASH_ATTN_MAX_JOBS}"
+  export NVCC_THREADS="${NVCC_THREADS:-$GB10_FLASH_ATTN_NVCC_THREADS}"
+}
+
+gb10_accel_core_packages() {
+  printf '%s\n' \
+    numpy \
+    packaging \
+    psutil \
+    ninja \
+    dllist \
+    "onnx$GB10_ONNX_VERSION_SPEC" \
+    "onnxscript$GB10_ONNXSCRIPT_VERSION_SPEC" \
+    "cuda-python$GB10_CUDA_PYTHON_VERSION_SPEC" \
+    "cuda-toolkit[cudart]$GB10_CUDA_TOOLKIT_VERSION_SPEC" \
+    "flashinfer-python$GB10_FLASHINFER_VERSION_SPEC" \
+    "flashinfer-cubin$GB10_FLASHINFER_VERSION_SPEC" \
+    "torch==$GB10_TORCH_VERSION_SPEC" \
+    "torchvision==$GB10_TORCHVISION_VERSION_SPEC" \
+    "triton==$GB10_TRITON_VERSION_SPEC"
+}
+
+gb10_accel_tensorrt_packages() {
+  printf '%s\n' \
+    "tensorrt-cu13$GB10_TENSORRT_VERSION_SPEC" \
+    "tensorrt-lean-cu13$GB10_TENSORRT_VERSION_SPEC" \
+    "tensorrt-dispatch-cu13$GB10_TENSORRT_VERSION_SPEC"
+}
+
+gb10_accel_torch_tensorrt_package() {
+  printf 'torch-tensorrt==%s\n' "$GB10_TORCH_TENSORRT_VERSION_SPEC"
+}
+
+gb10_accel_print_policy() {
+  cat <<EOF
+GB10 inference acceleration policy:
+  Python: $GB10_INFERENCE_PYTHON
+  Project Python: $GB10_PROJECT_PYTHON
+  Torch: $GB10_TORCH_VERSION_SPEC
+  TorchVision: $GB10_TORCHVISION_VERSION_SPEC
+  Triton: $GB10_TRITON_VERSION_SPEC
+  TensorRT CUDA 13: $GB10_TENSORRT_VERSION_SPEC
+  Torch-TensorRT: $GB10_TORCH_TENSORRT_VERSION_SPEC (--no-deps)
+  ONNX: $GB10_ONNX_VERSION_SPEC
+  ONNXScript: $GB10_ONNXSCRIPT_VERSION_SPEC
+  CUDA Python: $GB10_CUDA_PYTHON_VERSION_SPEC
+  CUDA Toolkit Python wheels: $GB10_CUDA_TOOLKIT_VERSION_SPEC
+  FlashInfer: $GB10_FLASHINFER_VERSION_SPEC
+  FlashAttention: latest best-effort, --no-build-isolation
+  TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST:-12.1a}
+EOF
+}

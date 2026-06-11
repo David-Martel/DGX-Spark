@@ -57,6 +57,15 @@ install-triton-stack:
 validate-triton-stack:
     ./scripts/validate_triton_stack.sh
 
+install-inference-accel-stack:
+    ./scripts/install_inference_accel_stack.sh
+
+validate-inference-accel-stack:
+    ./scripts/validate_inference_accel_stack.sh
+
+audit-torch-envs:
+    ./scripts/audit_torch_envs.sh
+
 validate-ai-audio-stack:
     ./scripts/validate_ai_audio_stack.sh
 
@@ -66,7 +75,7 @@ benchmark:
 debug-report:
     ./scripts/debug_report.sh
 
-all: inventory install-deps install-uv-python install-extended-toolsets download-sdks download-gated-sdks validate-toolsets build-ffmpeg validate-ffmpeg build-opencv validate-opencv install-python-stack install-triton-stack validate-triton-stack validate-ai-audio-stack benchmark debug-report
+all: inventory install-deps install-uv-python install-extended-toolsets download-sdks download-gated-sdks validate-toolsets build-ffmpeg validate-ffmpeg build-opencv validate-opencv install-python-stack install-triton-stack validate-triton-stack install-inference-accel-stack validate-inference-accel-stack validate-ai-audio-stack benchmark debug-report
 
 clean-builds:
     ./scripts/clean_builds.sh
