@@ -76,8 +76,9 @@ need_cmd() {
 }
 
 read_aliases() {
-  # shellcheck disable=SC2206
-  ALIAS_ARRAY=($ALIASES)
+  # Split the space-separated alias list robustly (avoids SC2206 globbing/
+  # word-splitting surprises if an alias ever contains a glob char).
+  read -r -a ALIAS_ARRAY <<< "$ALIASES"
   if [[ "${#ALIAS_ARRAY[@]}" -lt 2 || "${#ALIAS_ARRAY[@]}" -gt 4 ]]; then
     die "expected 2-4 aliases, got: $ALIASES"
   fi
@@ -290,18 +291,23 @@ cluster_ssh() {
   latest_link
   resolve_artifact_run_dir "cluster-ssh-commands.txt" \
     || die "missing cluster-ssh-commands.txt; run detect/snapshot-live/configure first"
+  local cmd_args
   while IFS= read -r cmd; do
     [[ -n "$cmd" ]] || continue
     log "running: $cmd"
-    # shellcheck disable=SC2086
-    nvsync_cmd integration spark setup-cluster-ssh $cmd | tee -a "$RUN_DIR/setup-cluster-ssh.jsonl"
+    # Split the command line into an args array (avoids SC2086 unquoted
+    # expansion while preserving intentional word-splitting into arguments).
+    read -r -a cmd_args <<< "$cmd"
+    nvsync_cmd integration spark setup-cluster-ssh "${cmd_args[@]}" | tee -a "$RUN_DIR/setup-cluster-ssh.jsonl"
   done < "$RUN_DIR/cluster-ssh-commands.txt"
 }
 
 nvsync_test() {
   read_aliases
+  # No `|| true`: with `set -o pipefail`, a fabric-test failure must propagate so
+  # `configure` returns non-zero. Use `--skip-nvsync-test` to bypass intentionally.
   nvsync_cmd integration spark test-network "$TOPOLOGY" "${ALIAS_ARRAY[@]}" --config-stdin \
-    < "$RUN_DIR/verify-config.json" | tee "$RUN_DIR/test-network.jsonl" || true
+    < "$RUN_DIR/verify-config.json" | tee "$RUN_DIR/test-network.jsonl"
 }
 
 cleanup_tests() {
@@ -324,6 +330,8 @@ rdma_test() {
   cleanup_tests
   local row local_alias remote_alias device gid_index remote_gid_or_target target_ip_or_port port
   local local_gid_index remote_gid_index target_ip
+  local failed=0
+  local client_rc server_rc
   while IFS=$'\t' read -r local_alias remote_alias device gid_index remote_gid_or_target target_ip_or_port port; do
     [[ "$local_alias" == "local_alias" || -z "$local_alias" ]] && continue
     if [[ -n "${port:-}" ]]; then
@@ -341,11 +349,24 @@ rdma_test() {
       < /dev/null > "$RUN_DIR/rdma-server-$device.log" 2>&1 &
     local server_pid=$!
     sleep 1
+    # Capture the client's ib_write_bw exit code: ${PIPESTATUS[0]} is the test,
+    # not tee. Without this the `| tee` (and any `|| true`) would swallow failures
+    # and let a broken RoCE path report success.
+    client_rc=0
     remote "$local_alias" "timeout 20 ib_write_bw -d '$device' --gid-index='$local_gid_index' -p '$port' --report_gbits '$target_ip'" \
-      < /dev/null 2>&1 | tee "$RUN_DIR/rdma-client-$device.log" || true
-    wait "$server_pid" || true
+      < /dev/null 2>&1 | tee "$RUN_DIR/rdma-client-$device.log"
+    client_rc=${PIPESTATUS[0]}
+    server_rc=0
+    wait "$server_pid" || server_rc=$?
+    if [[ "$client_rc" -ne 0 || "$server_rc" -ne 0 ]]; then
+      failed=1
+      log "RDMA test FAILED for $device (client_rc=$client_rc server_rc=$server_rc)"
+    fi
   done < "$RUN_DIR/rdma-tests.tsv"
   cleanup_tests
+  if [[ "$failed" -ne 0 ]]; then
+    die "one or more RDMA bandwidth tests failed; see $RUN_DIR/rdma-*.log"
+  fi
 }
 
 configure() {

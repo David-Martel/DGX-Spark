@@ -25,13 +25,16 @@ def _load_envelope(path: Path) -> dict[str, Any]:
         if not line:
             continue
         item = json.loads(line)
+        # Fail fast on ANY error envelope, not just the final data-bearing line.
+        # nvsync streams JSONL where a failure may be reported on a non-data line;
+        # ignoring those would let a broken fabric silently pass.
+        error = item.get("error")
+        if error:
+            raise SystemExit(f"nvsync returned error: {error}")
         if item.get("data"):
             last = item
     if not last:
         raise SystemExit(f"no data envelope found in {path}")
-    error = last.get("error")
-    if error:
-        raise SystemExit(f"nvsync returned error: {error}")
     return last["data"]
 
 
