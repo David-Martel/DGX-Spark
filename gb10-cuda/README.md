@@ -32,6 +32,9 @@ just build-opencv
 just validate-opencv
 just install-triton-stack
 just validate-triton-stack
+just install-inference-accel-stack
+just validate-inference-accel-stack
+just audit-torch-envs
 just benchmark
 just debug-report
 ```
@@ -55,6 +58,8 @@ Use `FORCE_REBUILD=1` with build commands to wipe and rebuild a component.
   `/opt/gb10-cuda/triton/model_repository`
 - Triton Server image:
   `nvcr.io/nvidia/tritonserver:25.12-py3`
+- Inference acceleration venv:
+  `/opt/gb10-cuda/venvs/inference-cpython-3.13.13`
 
 For OpenCV/CuPy/nvImageCodec work:
 
@@ -92,12 +97,36 @@ cd ~/gb10-cuda
 just validate-triton-stack
 ```
 
+For ONNX/TensorRT/Torch-TensorRT/FlashAttention readiness:
+
+```bash
+cd ~/gb10-cuda
+just install-inference-accel-stack
+just validate-inference-accel-stack
+```
+
+The inference venv targets Python 3.13.13 because TensorRT 11, PyTorch CUDA 13,
+ONNX, CUDA Python, and FlashInfer all resolve on that interpreter while keeping
+the lane short of the Python 3.14 ROS Lyrical Ubuntu 26.04 target. TensorRT is
+installed with explicit CUDA 13 Python wheels.
+The valid PyTorch CUDA 13 lane currently uses latest Torch/TorchVision/Triton
+available on this host (`2.12.0`, `0.27.0`, `3.7.0`), latest CUDA Python
+bindings (`13.3.x`), and the Torch-pinned CUDA runtime wheel
+`cuda-toolkit[cudart]==13.0.2`. Do not force standalone `cuda-toolkit 13.3`
+into the Torch env; it conflicts with the published Torch CUDA 13 wheel.
+FlashInfer is installed from the latest resolvable `0.6.x` lane. Torch-TensorRT
+and FlashAttention are best-effort on Linux SBSA: validation reports record
+whether prebuilt wheels or local builds are usable on the current GB10 host.
+Torch-TensorRT is installed with `--no-deps` so its resolver cannot downgrade
+the validated PyTorch/Triton/TensorRT stack.
+
 ## Python Policy
 
 `uv` is installed under `~/.local/bin` and manages the workspace Python
 versions. Python 3.15.0b1 is installed as the uv default, but CUDA media wheels
-are not fully available for `cp315` yet. Use Python 3.14 for OpenCV/CuPy and
-Python 3.13 for PyNvVideoCodec until those wheels catch up.
+are not fully available for `cp315` yet. Use Python 3.14 for OpenCV/CuPy,
+Python 3.13 for PyNvVideoCodec, and Python 3.13 for the inference acceleration
+lane until Python 3.14 CUDA inference wheels catch up.
 
 The distro `/usr/bin/python3` remains unchanged for apt, ROS, NVIDIA packages,
 and desktop tooling. TensorRT and ONNX Python bindings are installed through
@@ -136,6 +165,20 @@ GB10 GPU. The current user is not in the Docker access path for
 Triton is installed in both useful forms: `torch 2.12.0+cu130` plus
 `triton 3.7.0` in the primary uv media venv for custom kernel work, and
 NVIDIA Triton Inference Server 2.64.0 via the official Arm container image.
+The inference acceleration venv is the project-managed route for ONNX,
+ONNXScript, TensorRT Python wheels, Torch-TensorRT import validation, and
+FlashAttention smoke checks.
+
+To reconcile local Python acceleration environments across this checkout,
+IntuBlade, and VIGIL Spark:
+
+```bash
+cd ~/gb10-cuda
+just audit-torch-envs
+```
+
+The audit records the intended split between the Torch 2.12 GB10/SAM3
+acceleration lane and the Torch 2.11 vLLM service lane.
 
 These synthetic microbenchmarks validate functionality and expose transfer
 overhead. They are not a final throughput model for longer pipelines that keep

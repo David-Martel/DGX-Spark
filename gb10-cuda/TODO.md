@@ -184,6 +184,44 @@ Triton notes:
   `NVIDIA GB10`, and exposed HTTP/gRPC/metrics endpoints on container ports
   `8000/8001/8002`.
 
+### 5B. Inference Acceleration Python Tooling
+
+- [x] Add a uv-managed Python 3.13 inference venv for packages whose wheel
+  support is narrower than the Python 3.14 media stack.
+- [x] Install/validate ONNX and ONNXScript in the inference venv.
+- [x] Install/validate TensorRT CUDA 13 Python wheels in the inference venv
+  where available, while keeping apt TensorRT as the system baseline.
+- [x] Add best-effort Torch-TensorRT installation and import validation.
+- [x] Add best-effort FlashAttention installation using `--no-build-isolation`
+  with bounded build parallelism.
+- [x] Emit Markdown and JSON validation reports with CUDA, ONNX export,
+  TensorRT builder, Torch-TensorRT, and FlashAttention readiness.
+- [x] Add a Torch environment audit that reconciles DGX-Spark, IntuBlade, and
+  VIGIL Spark venvs against their intended Torch lanes.
+
+Inference acceleration notes:
+
+- Command surface: `just install-inference-accel-stack` and
+  `just validate-inference-accel-stack`.
+- Default venv:
+  `/opt/gb10-cuda/venvs/inference-cpython-3.13.13`.
+- Defaults: `TORCH_CUDA_ARCH_LIST=12.1a`,
+  `TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas`,
+  `GB10_FLASH_ATTN_MAX_JOBS=4`, and
+  `GB10_FLASH_ATTN_NVCC_THREADS=1`.
+- CUDA Python bindings track the latest compatible `13.3.x` lane, but the
+  PyTorch CUDA runtime wheel remains `cuda-toolkit[cudart]==13.0.2` because
+  Torch `2.12.0+cu130` requires it.
+- FlashInfer is tracked on `0.6.12` for PyPI packages and
+  `0.6.12+cu130` for the legacy CUDA-index JIT cache package.
+- Torch-TensorRT and FlashAttention are validated as optional until Linux SBSA
+  wheel/source-build compatibility is proven on this exact CUDA/PyTorch tuple.
+- Torch-TensorRT is installed with `--no-deps` in this lane because a normal
+  resolver install can downgrade PyTorch, Triton, and TensorRT away from the
+  validated CUDA 13 stack.
+- VIGIL Spark keeps its vLLM background service on a separate Torch 2.11 lane
+  while `.venv-gb10-accel` consumes the Torch 2.12 GB10/SAM3 lane.
+
 ### 6. Benchmarks
 
 - [x] Generate synthetic H.264 test media when source media is not
@@ -254,9 +292,8 @@ media, CV, and AI/ML workloads.
 - [ ] Track PyNvVideoCodec Python 3.14 compatibility. Current evidence:
   `reports/validate-python-stack-20260603T132426Z.md` shows the 3.14 import
   fails on `ast.Str`; Python 3.13 remains the validated compatibility venv.
-- [ ] Decide whether to keep TensorRT Python bindings only on system Python or
-  add a uv-compatible TensorRT Python route. Current state: apt validates
-  `tensorrt 11.0.0.114` on `/usr/bin/python3`, not in the uv media venv.
+- [x] Add a uv-compatible TensorRT Python route in the dedicated inference venv.
+  The Python 3.14 media venv remains separate for OpenCV/CuPy/nvImageCodec.
 - [ ] Add a lightweight dependency drift check that fails if uv package updates
   remove CUDA support from the media venv, especially for `torch`, `triton`,
   `cupy-cuda13x`, and `nvidia-*` CUDA wheels.
@@ -298,6 +335,9 @@ media, CV, and AI/ML workloads.
   pinned-memory and CUDA-memory-pool settings.
 - [ ] Build or convert a tiny ONNX model with TensorRT and validate `trtexec`
   engine build/load on GB10.
+- [ ] Promote the inference acceleration ONNX export smoke into a TensorRT
+  engine-build benchmark once the TensorRT Python wheels and/or `trtexec` route
+  validate on the target host.
 - [ ] Evaluate whether Triton Server should run with explicit larger
   `--cuda-memory-pool-byte-size` / pinned-memory settings for DGX Spark unified
   memory behavior.
