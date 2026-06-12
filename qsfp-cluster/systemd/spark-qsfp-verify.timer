@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic DGX Spark QSFP/ConnectX-7 verification
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

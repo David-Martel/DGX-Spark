@@ -1,0 +1,8 @@
+[Unit]
+Description=Verify DGX Spark QSFP/ConnectX-7 cluster fabric
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/DGX-Spark/qsfp-cluster/bin/spark_qsfp_cluster.sh verify
