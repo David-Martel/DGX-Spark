@@ -75,6 +75,13 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
+needs_nvsync() {
+  case "$1" in
+    doctor|preflight|detect|configure|verify|cluster-ssh) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 read_aliases() {
   # Split the space-separated alias list robustly (avoids SC2206 globbing/
   # word-splitting surprises if an alias ever contains a glob char).
@@ -431,7 +438,9 @@ done
 
 need_cmd python3
 need_cmd ssh
-[[ -x "$NVSYNC" ]] || die "missing executable nvsync helper: $NVSYNC"
+if needs_nvsync "$COMMAND"; then
+  [[ -x "$NVSYNC" ]] || die "missing executable nvsync helper: $NVSYNC"
+fi
 
 case "$COMMAND" in
   doctor) doctor ;;
