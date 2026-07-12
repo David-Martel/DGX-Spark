@@ -75,6 +75,13 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
+needs_nvsync() {
+  case "$1" in
+    preflight|detect|configure|cluster-ssh) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 read_aliases() {
   # Split the space-separated alias list robustly (avoids SC2206 globbing/
   # word-splitting surprises if an alias ever contains a glob char).
@@ -273,6 +280,42 @@ set_network() {
     | tee "$RUN_DIR/set-network.jsonl"
 }
 
+verify_local() {
+  # Portable, nvsync-free verification (C13): confirm the local node's expected
+  # IPs are present and ping its ping_targets. $1 = path to verify-config.json.
+  # Emits JSONL PASS/FAIL lines, exits non-zero if any check fails.
+  python3 - "$(hostname -s)" "$1" <<'PY'
+import json, sys, subprocess
+host = sys.argv[1]
+with open(sys.argv[2]) as _fh:
+    cfg = json.load(_fh)
+key = next((k for k in cfg if k.split('-lan')[0].split('-ts')[0] == host or k.startswith(host)), None)
+rc = 0
+if key is None:
+    print(json.dumps({"event": "verify_local", "result": "SKIP",
+                      "reason": f"no config entry for {host}", "hosts": list(cfg)}))
+    sys.exit(0)
+entry = cfg[key]
+have = subprocess.run(["ip", "-o", "-4", "addr", "show"],
+                      capture_output=True, text=True).stdout
+for iface, cidr in entry.get("expected_ips", {}).items():
+    ip = cidr.split('/')[0]
+    ok = (f" {iface} " in have) and (ip in have)
+    rc |= 0 if ok else 1
+    print(json.dumps({"event": "expected_ip", "node": key, "iface": iface,
+                      "ip": cidr, "result": "PASS" if ok else "FAIL"}))
+for tgt in entry.get("ping_targets", []):
+    ok = subprocess.run(["ping", "-c", "2", "-W", "2", tgt],
+                        capture_output=True).returncode == 0
+    rc |= 0 if ok else 1
+    print(json.dumps({"event": "ping", "node": key, "target": tgt,
+                      "result": "PASS" if ok else "FAIL"}))
+print(json.dumps({"event": "verify_local", "node": key,
+                  "result": "PASS" if rc == 0 else "FAIL"}))
+sys.exit(rc)
+PY
+}
+
 verify() {
   read_aliases
   ensure_run_dir
@@ -281,8 +324,13 @@ verify() {
     log "no saved verify-config.json found; generating a live snapshot first"
     snapshot_live
   fi
-  nvsync_cmd integration spark verify-network "${ALIAS_ARRAY[@]}" --config-stdin \
-    < "$RUN_DIR/verify-config.json" | tee "$RUN_DIR/verify-network.jsonl"
+  if [[ -x "$NVSYNC" ]]; then
+    nvsync_cmd integration spark verify-network "${ALIAS_ARRAY[@]}" --config-stdin \
+      < "$RUN_DIR/verify-config.json" | tee "$RUN_DIR/verify-network.jsonl"
+  else
+    log "nvsync helper absent ($NVSYNC); running local IP+ping verification (C13 portable fallback)"
+    verify_local "$RUN_DIR/verify-config.json" | tee "$RUN_DIR/verify-network.jsonl"
+  fi
 }
 
 cluster_ssh() {
@@ -431,7 +479,9 @@ done
 
 need_cmd python3
 need_cmd ssh
-[[ -x "$NVSYNC" ]] || die "missing executable nvsync helper: $NVSYNC"
+if needs_nvsync "$COMMAND"; then
+  [[ -x "$NVSYNC" ]] || die "missing executable nvsync helper: $NVSYNC"
+fi
 
 case "$COMMAND" in
   doctor) doctor ;;
