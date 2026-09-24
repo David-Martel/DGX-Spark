@@ -27,7 +27,7 @@ Environment:
   GB10_INFERENCE_PYTHON       uv Python spec, default cpython-3.13.13-linux-aarch64-gnu
   GB10_INFERENCE_VENV         target venv, default /opt/gb10-cuda/venvs/inference-cpython-3.13.13
   GB10_TORCH_VERSION_SPEC     Torch version glob, default 2.12.*
-  GB10_TENSORRT_VERSION_SPEC  TensorRT version range, default >=11,<12
+  GB10_TENSORRT_VERSION_SPEC  TensorRT version override; default derived from system libnvinfer-bin
 EOF
       exit 0
       ;;
@@ -42,6 +42,17 @@ append_report_header "$report" "GB10 Inference Acceleration Install"
 
 gb10_accel_export_env
 
+# Preflight, before anything is installed. Both checks fail closed: a partial
+# venv built against a missing prerequisite is worse than no venv. The TensorRT
+# pin is derived here rather than beside its install, because
+# `mapfile < <(gb10_accel_tensorrt_packages)` reports mapfile's status, not the
+# function's -- a missing libnvinfer-bin became an empty package list and the
+# install carried on.
+gb10_accel_require_system_cuda || die "system CUDA prerequisite not met; refusing to provision"
+tensorrt_packages_raw="$(gb10_accel_tensorrt_packages)" \
+  || die "cannot derive the TensorRT pin; refusing to install an unmatched TensorRT"
+mapfile -t tensorrt_packages <<<"$tensorrt_packages_raw"
+
 if [[ ! -d "$inference_venv" ]]; then
   run_logged create-inference-venv uv venv --seed --python "$python_spec" "$inference_venv"
 fi
@@ -50,15 +61,6 @@ pip_install() {
   local name="$1"
   shift
   run_logged "pip-inference-$name" uv pip install --python "$inference_venv/bin/python" "$@"
-}
-
-pip_install_best_effort() {
-  local name="$1"
-  shift
-  if ! pip_install "$name" "$@"; then
-    log "$name install failed; validation will record import status"
-    return 0
-  fi
 }
 
 {
@@ -77,8 +79,17 @@ pip_install_best_effort() {
 pip_install base --upgrade pip setuptools wheel
 mapfile -t core_packages < <(gb10_accel_core_packages)
 pip_install core "${core_packages[@]}"
-mapfile -t tensorrt_packages < <(gb10_accel_tensorrt_packages)
-pip_install_best_effort tensorrt "${tensorrt_packages[@]}"
+# Soft-fail by design, but never silently: the pin was derived from the system
+# libnvinfer-bin, so a missing wheel means a real skew someone has to see. The
+# outcome goes into the done marker, where a later readiness check can read it.
+tensorrt_pin="${tensorrt_packages[0]}"
+if pip_install tensorrt "${tensorrt_packages[@]}"; then
+  tensorrt_receipt="tensorrt: installed ($tensorrt_pin)"
+else
+  echo "WARN: pinned TensorRT wheel $tensorrt_pin failed to install -- continuing without it" >&2
+  tensorrt_receipt="tensorrt: missing ($tensorrt_pin)"
+fi
+printf -- '- %s\n' "$tensorrt_receipt" >> "$report"
 
 if [[ "$skip_torch_tensorrt" -eq 0 ]]; then
   log "Torch-TensorRT is not installed into the TensorRT 11 lane by default; use a separate compatibility venv with TensorRT $GB10_TORCH_TENSORRT_TENSORRT_VERSION_SPEC if needed"
@@ -96,4 +107,5 @@ validate_args=()
 [[ "$strict" -eq 1 ]] && validate_args+=(--strict)
 "$SCRIPT_DIR/validate_inference_accel_stack.sh" "${validate_args[@]}"
 mark_done inference-accel-stack
+printf '%s\n' "$tensorrt_receipt" > "$GB10_STATE/inference-accel-stack.done"
 log "Inference acceleration install report: $report"
