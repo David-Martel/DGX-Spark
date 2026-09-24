@@ -63,15 +63,6 @@ pip_install() {
   run_logged "pip-inference-$name" uv pip install --python "$inference_venv/bin/python" "$@"
 }
 
-pip_install_best_effort() {
-  local name="$1"
-  shift
-  if ! pip_install "$name" "$@"; then
-    log "$name install failed; validation will record import status"
-    return 0
-  fi
-}
-
 {
   printf '## Target\n\n'
   printf -- '- Python spec: `%s`\n' "$python_spec"
@@ -88,7 +79,17 @@ pip_install_best_effort() {
 pip_install base --upgrade pip setuptools wheel
 mapfile -t core_packages < <(gb10_accel_core_packages)
 pip_install core "${core_packages[@]}"
-pip_install_best_effort tensorrt "${tensorrt_packages[@]}"
+# Soft-fail by design, but never silently: the pin was derived from the system
+# libnvinfer-bin, so a missing wheel means a real skew someone has to see. The
+# outcome goes into the done marker, where a later readiness check can read it.
+tensorrt_pin="${tensorrt_packages[0]}"
+if pip_install tensorrt "${tensorrt_packages[@]}"; then
+  tensorrt_receipt="tensorrt: installed ($tensorrt_pin)"
+else
+  echo "WARN: pinned TensorRT wheel $tensorrt_pin failed to install -- continuing without it" >&2
+  tensorrt_receipt="tensorrt: missing ($tensorrt_pin)"
+fi
+printf -- '- %s\n' "$tensorrt_receipt" >> "$report"
 
 if [[ "$skip_torch_tensorrt" -eq 0 ]]; then
   log "Torch-TensorRT is not installed into the TensorRT 11 lane by default; use a separate compatibility venv with TensorRT $GB10_TORCH_TENSORRT_TENSORRT_VERSION_SPEC if needed"
@@ -106,4 +107,5 @@ validate_args=()
 [[ "$strict" -eq 1 ]] && validate_args+=(--strict)
 "$SCRIPT_DIR/validate_inference_accel_stack.sh" "${validate_args[@]}"
 mark_done inference-accel-stack
+printf '%s\n' "$tensorrt_receipt" > "$GB10_STATE/inference-accel-stack.done"
 log "Inference acceleration install report: $report"
