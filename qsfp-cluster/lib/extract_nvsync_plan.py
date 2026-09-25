@@ -9,7 +9,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 ROCE_DEVICE_BY_INTERFACE = {
     "enp1s0f0np0": "rocep1s0f0",
     "enp1s0f1np1": "rocep1s0f1",
@@ -51,7 +50,9 @@ def _cluster_alias(management_alias: str) -> str:
     return f"{management_alias}-cluster"
 
 
-def _peer_ip_for(interface_ip: str, peer_nodes: dict[str, Any], interface: str) -> str | None:
+def _peer_ip_for(
+    interface_ip: str, peer_nodes: dict[str, Any], interface: str
+) -> str | None:
     subnet_match = re.match(r"^(\d+\.\d+\.\d+)\.\d+/\d+$", interface_ip)
     if not subnet_match:
         return None
@@ -133,7 +134,9 @@ def write_artifacts(data: dict[str, Any], out_dir: Path) -> None:
                 # Use the first interface IP as the stable cluster SSH target.
                 first_ip = next(iter(peer_node.get("interface_ips", {}).values()), "")
                 if first_ip:
-                    peers.append(f"{_cluster_alias(peer_alias)}@{first_ip.split('/', 1)[0]}")
+                    peers.append(
+                        f"{_cluster_alias(peer_alias)}@{first_ip.split('/', 1)[0]}"
+                    )
             if peers:
                 fh.write(" ".join([alias, *peers]) + "\n")
 
@@ -145,12 +148,20 @@ def write_artifacts(data: dict[str, Any], out_dir: Path) -> None:
             local_node = nodes[local_alias]
             remote_node = nodes[remote_alias]
             port = 18520
-            for interface, address in sorted(local_node.get("interface_ips", {}).items()):
+            for interface, address in sorted(
+                local_node.get("interface_ips", {}).items()
+            ):
                 device = ROCE_DEVICE_BY_INTERFACE.get(interface)
                 gid_index = _rocev2_gid_index(local_node, interface)
-                target_ip = remote_node.get("interface_ips", {}).get(interface, "").split("/", 1)[0]
+                target_ip = (
+                    remote_node.get("interface_ips", {})
+                    .get(interface, "")
+                    .split("/", 1)[0]
+                )
                 if device and gid_index is not None and target_ip:
-                    fh.write(f"{local_alias}\t{remote_alias}\t{device}\t{gid_index}\t{target_ip}\t{port}\n")
+                    fh.write(
+                        f"{local_alias}\t{remote_alias}\t{device}\t{gid_index}\t{target_ip}\t{port}\n"
+                    )
                     port += 1
 
     with (out_dir / "interfaces-by-alias.txt").open("w", encoding="utf-8") as fh:
