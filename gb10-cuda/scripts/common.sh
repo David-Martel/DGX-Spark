@@ -37,7 +37,8 @@ run_logged() {
   local name="$1"
   shift
   ensure_dirs
-  local logfile="$GB10_LOGS/${name}-$(timestamp).log"
+  local logfile
+  logfile="$GB10_LOGS/${name}-$(timestamp).log"
   log "running: $*"
   log "log: $logfile"
   "$@" 2>&1 | tee "$logfile"

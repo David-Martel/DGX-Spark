@@ -59,3 +59,7 @@ cmake-build-*/
 *.tar
 *.tar.gz
 *.tgz
+
+# Repo-local agent worktrees (never committed)
+/worktrees/
+.claude/worktrees/

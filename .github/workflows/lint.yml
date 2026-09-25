@@ -1,0 +1,69 @@
+name: Lint
+
+# Minimal, hardware-free static-analysis gate (loud-error directive): shellcheck on this
+# repo's own shell scripts (excluding the vendored external/librealsense submodule) at
+# --severity=warning, plus ruff on this repo's own Python files.
+#
+# --severity=warning is deliberate, not a loophole: shellcheck's default reports even
+# style/info findings, and this repo's scripts carry many pre-existing SC1091 ("not
+# following: sourced file was not specified as input") and SC2016 (single-quote
+# expression) notes that are informational and out of scope here. Verified locally
+# (2026-09-25): every tracked script in this repo passes `shellcheck --severity=warning`
+# cleanly; only warning-and-above findings (SC2054, SC2155) were fixed to reach that state.
+#
+# KNOWN GAP, recorded rather than hidden: as of 2026-09-25 this repo has ZERO GitHub
+# Actions runners registered (`gh api repos/David-Martel/DGX-Spark/actions/runners`
+# returns an empty list), so this workflow will queue indefinitely on self-hosted labels
+# until a runner is registered for this repo. It is added now so the gate exists and is
+# correct the moment a runner comes online, rather than being written later under time
+# pressure -- but until then, do not read a green checkmark's ABSENCE here as "nothing to
+# fix"; it may mean "never ran." See docs/ or open an issue to track runner registration.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run shellcheck (warning and above) on this repo's own scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' scripts < <(find . -name '*.sh' \
+            -not -path './external/*' \
+            -not -path './.git/*' \
+            -print0)
+          if [ "${#scripts[@]}" -eq 0 ]; then
+            echo "::error::no shell scripts found -- the find filter is probably wrong"
+            exit 1
+          fi
+          echo "Checking ${#scripts[@]} script(s)"
+          shellcheck --severity=warning "${scripts[@]}"
+
+  ruff:
+    name: ruff (this repo's own Python files)
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run ruff check + format --check
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' pyfiles < <(git ls-files -z -- '*.py' | grep -zv '^external/')
+          if [ "${#pyfiles[@]}" -eq 0 ]; then
+            echo "::error::no tracked Python files found outside external/ -- the filter is probably wrong"
+            exit 1
+          fi
+          echo "Checking ${#pyfiles[@]} file(s): ${pyfiles[*]}"
+          uvx ruff check "${pyfiles[@]}"
+          uvx ruff format --check "${pyfiles[@]}"

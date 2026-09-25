@@ -9,7 +9,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 ROCE_DEVICE_BY_INTERFACE = {
     "enp1s0f0np0": "rocep1s0f0",
     "enp1s0f1np1": "rocep1s0f1",
@@ -49,14 +48,18 @@ def _load_node(run_dir: Path, alias: str, ip_base: str) -> dict[str, Any]:
         if cidr:
             interface_ips[name] = cidr
     if not interface_ips:
-        raise SystemExit(f"{alias}: no {ip_base}.x IPv4 addresses found on known CX7 interfaces")
+        raise SystemExit(
+            f"{alias}: no {ip_base}.x IPv4 addresses found on known CX7 interfaces"
+        )
     return {
         "interface_ips": dict(sorted(interface_ips.items())),
         "netplan_path": "/etc/netplan/99-nvidia-sync-cluster.yaml",
     }
 
 
-def _peer_ip_for(interface_ip: str, peer_nodes: dict[str, Any], interface: str) -> str | None:
+def _peer_ip_for(
+    interface_ip: str, peer_nodes: dict[str, Any], interface: str
+) -> str | None:
     subnet_match = re.match(r"^(\d+\.\d+\.\d+)\.\d+/\d+$", interface_ip)
     if not subnet_match:
         return None
@@ -89,7 +92,9 @@ def _load_rocev2_gid_indexes(run_dir: Path, alias: str) -> dict[tuple[str, str],
         match = pattern.match(line.strip())
         if not match:
             continue
-        indexes[(match.group("device"), match.group("ipv4"))] = int(match.group("index"))
+        indexes[(match.group("device"), match.group("ipv4"))] = int(
+            match.group("index")
+        )
     return indexes
 
 
@@ -139,7 +144,9 @@ def _write_artifacts(run_dir: Path, aliases: list[str], nodes: dict[str, Any]) -
                     continue
                 first_ip = next(iter(nodes[peer_alias]["interface_ips"].values()), "")
                 if first_ip:
-                    peers.append(f"{_cluster_alias(peer_alias)}@{first_ip.split('/', 1)[0]}")
+                    peers.append(
+                        f"{_cluster_alias(peer_alias)}@{first_ip.split('/', 1)[0]}"
+                    )
             if peers:
                 fh.write(" ".join([alias, *peers]) + "\n")
 
@@ -155,8 +162,14 @@ def _write_artifacts(run_dir: Path, aliases: list[str], nodes: dict[str, Any]) -
             port = 18520
             for interface in sorted(nodes[local_alias]["interface_ips"]):
                 device = ROCE_DEVICE_BY_INTERFACE.get(interface)
-                local_ip = nodes[local_alias]["interface_ips"][interface].split("/", 1)[0]
-                target_ip = nodes[remote_alias]["interface_ips"].get(interface, "").split("/", 1)[0]
+                local_ip = nodes[local_alias]["interface_ips"][interface].split("/", 1)[
+                    0
+                ]
+                target_ip = (
+                    nodes[remote_alias]["interface_ips"]
+                    .get(interface, "")
+                    .split("/", 1)[0]
+                )
                 fallback_gid_index = _rocev2_gid_index(interface)
                 local_gid_index = gid_indexes[local_alias].get(
                     (device, local_ip),
@@ -191,7 +204,9 @@ def main() -> int:
     parser.add_argument("--ip-base", default="10.55")
     args = parser.parse_args()
 
-    nodes = {alias: _load_node(args.run_dir, alias, args.ip_base) for alias in args.aliases}
+    nodes = {
+        alias: _load_node(args.run_dir, alias, args.ip_base) for alias in args.aliases
+    }
     _write_artifacts(args.run_dir, args.aliases, nodes)
     return 0
 
