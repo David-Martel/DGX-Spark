@@ -135,15 +135,26 @@ inactive saved profiles.
 
 ## VIGIL Runtime Environment
 
-For distributed VIGIL or model-runtime experiments, use the Sync-managed fabric:
+For distributed VIGIL or model-runtime experiments, select the Sync-managed
+fabric according to the connected and verified topology on both peers:
 
-```bash
-export NCCL_SOCKET_IFNAME=enp1s0f0np0,enP2p1s0f0np0
-export NCCL_IB_HCA=rocep1s0f0,roceP2p1s0f0
-export NCCL_IB_DISABLE=0
-export NCCL_NET_PLUGIN=none
-export UCX_NET_DEVICES=enp1s0f0np0,enP2p1s0f0np0
-```
+| Qualified topology | Runtime selector scope |
+| --- | --- |
+| One connected QSFP port per Spark | Two discovered RoCE HCAs and their two Linux interfaces |
+| Two connected QSFP ports per Spark | Four discovered RoCE HCAs and their four Linux interfaces |
+
+Resolve names and GID indices from `snapshot-live` and each peer's `show_gids`
+output. Match NCCL's HCA and socket-interface selectors to those qualified
+rails, and use the same topology scope for any UCX profile. A two-HCA selector
+does not exercise a four-rail topology.
+Verify that NCCL actually opens the selected HCAs through `NET/IB` on both
+peers rather than counting the selector echoed in its log.
+
+The VIGIL fleet's four-rail selector and acceptance contract are maintained in
+[vigil-spark's canonical network validator](https://github.com/David-Martel/vigil-spark/blob/dcdb351b0561713988c798270496b84bb2b848ae/scripts/spark_stress/network.py).
+Use its [current fleet networking worklist](https://github.com/David-Martel/vigil-spark/blob/main/docs/network-mok-remediation.TODO.md)
+for deployment and qualification status; this guide's historical measurements
+do not establish acceptance of the currently installed stack.
 
 Keep ROS 2 discovery and operator SSH on the management network unless a
 specific experiment explicitly binds ROS traffic to the ConnectX-7 subnets.
