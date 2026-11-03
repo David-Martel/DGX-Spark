@@ -6,18 +6,24 @@ invoke scripts relative to the justfile directory.
 
 ## Prerequisites and build scope
 
-Install `just` before using the quick start; its test command needs Bash, Python 3,
+Install `just` before using the quick start; its test command needs Git, Bash, Python 3,
 `uv` and standard Linux command-line utilities. Install, build and inventory
 target a DGX Spark: Linux aarch64, NVIDIA drivers and the system CUDA toolchain.
 The install recipe provisions system dependencies and needs `sudo`, package and
 network access. Review the [dependency installer](../gb10-cuda/scripts/install_deps.sh)
-before running it. Its existing TensorRT dry-run pipeline can enter the install
-branch when the simulation fails; inspect the proposed package changes before
-using this installer on a managed driver/CUDA baseline. This documentation
-change does not repair or qualify that installer.
-The [source issue](https://github.com/David-Martel/DGX-Spark/issues/10) and
-[organization issue](https://github.com/vigil-paradigm/DGX-Spark/issues/5) track
+before running it. Its existing TensorRT dry-run pipeline can enter the real
+install branch after a failed simulation, or after a matching guard causes an
+early pipe closure under `pipefail`. Its result is not a reliable admission
+decision. Run and read `apt-get install -s tensorrt-dev tensorrt-libs libnvinfer-bin`
+separately before considering this recipe: the real installation uses `-y`.
+This documentation change does not repair or qualify that installer.
+The [David-Martel issue](https://github.com/David-Martel/DGX-Spark/issues/10) and
+[vigil-paradigm issue](https://github.com/vigil-paradigm/DGX-Spark/issues/5) track
 the fail-closed repair and its detecting controls.
+
+All three host commands call [shared setup](../gb10-cuda/scripts/common.sh),
+which creates build directories and recursively changes ownership of all
+existing contents under `/opt/gb10-cuda` through `sudo`.
 
 The build line runs only the [FFmpeg builder](../gb10-cuda/scripts/build_ffmpeg.sh).
 It needs CUDA and the installed build dependencies, downloads source and writes
@@ -32,13 +38,19 @@ archive staged under `/opt/gb10-cuda/sdks`. Do not publish credentials or archiv
 It also requires `bw`, `jq`, `curl` and `unzip`, installs headers into the CUDA
 include directory, and can exit zero after skipping a download. Check its report
 and the required header files before starting OpenCV.
+It also searches `$HOME/Downloads` for matching Video Codec archive names and
+can remove earlier unofficial headers from the CUDA include directory.
 FFmpeg's codec headers do not satisfy this separate OpenCV prerequisite.
 
 Set `OPENCV_PYTHON` to the intended interpreter, or prepare the expected
 `/opt/gb10-cuda/venvs/media/bin/python` before building OpenCV. Otherwise the
 builder falls back to `/usr/bin/python3` and targets its package directory;
 the Python binding can therefore install outside `/opt/gb10-cuda` or fail on
-permissions. The quick start does not take this path.
+permissions. It can also install missing NumPy into that interpreter. The
+[media-stack installer](../gb10-cuda/scripts/install_python_stack.sh) creates
+the expected media virtual environment, additional compatibility environments
+and GPU-package/import probes; review its downloads and changes before use.
+The quick start does not take this path.
 
 The optional [managed-Python installer](../gb10-cuda/scripts/install_uv_python.sh)
 bootstraps `uv` through a downloaded shell script when it is absent. It attempts
@@ -47,9 +59,8 @@ fallback, and recreates its smoke virtual environment. Review its current pins
 and shim/PATH effects first; it does not create the OpenCV media virtual environment.
 
 The [inventory script](../gb10-cuda/scripts/inventory.sh) writes
-a host report under `$HOME/gb10-cuda/reports` by default. Its shared setup also
-creates build directories and recursively changes ownership of all existing
-contents under `/opt/gb10-cuda` through `sudo`. It compiles `/tmp/cuda_um_probe`
+a host report under `$HOME/gb10-cuda/reports` by default. In addition to the
+shared setup above, it compiles `/tmp/cuda_um_probe`
 and runs it; inventory is not a read-only host query. Individual section failures
 are tolerated, so exit zero does not prove CUDA or any other section succeeded;
 read the report contents.
@@ -62,6 +73,8 @@ The [lint workflow](../.github/workflows/lint.yml) has two independent jobs.
 The quick-start test line uses the workflow's tracked-file selection for Ruff,
 then runs both existing local regression scripts. `uvx` may download Ruff; use the
 same tool version when comparing a local result with a particular CI run.
+Only a completed run for the exact reviewed revision supplies CI evidence;
+a queued or absent result does not show that a check ran.
 
 Run the ShellCheck job separately from the repository root with Bash and
 ShellCheck installed:
@@ -76,16 +89,20 @@ checkout while running that exact `find` command: the workflow does not exclude
 `worktrees/`. Neither lint job compiles the SDK, builds CUDA media libraries or
 opens a camera.
 
-Two existing mocked regression scripts can run on Linux without a Spark:
+Two existing mocked regression scripts can run on Linux without a Spark. They
+need an executable temporary directory, `USER` set to an existing user with a
+same-named group, and the command-line prerequisites above; minimal containers
+may need those runtime settings provided explicitly:
 
 ```bash
 bash gb10-cuda/test/test_accel_install_fail_closed.sh
 bash qsfp-cluster/test/test_portable_commands.sh
 ```
 
-The [installer test](../gb10-cuda/test/test_accel_install_fail_closed.sh) detects
+The [inference-acceleration installer test](../gb10-cuda/test/test_accel_install_fail_closed.sh) detects
 provisioning before prerequisite admission using mocked commands, including a
-positive control that reaches provisioning. The
+positive control that reaches provisioning. It does not test the dependency
+installer's TensorRT simulation guard. The
 [portable-command test](../qsfp-cluster/test/test_portable_commands.sh) checks
 local doctor/verify behavior and refusal when the NVIDIA Sync helper is missing.
 Its missing-helper diagnostics are intentional. These scripts are separate local

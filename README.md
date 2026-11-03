@@ -10,6 +10,8 @@ Run these commands from the repository root after [cloning](#clone). Install,
 build and run require a DGX Spark with its NVIDIA drivers and use `sudo`.
 The test command runs the Ruff job from the [lint workflow](.github/workflows/lint.yml)
 and the two existing mocked regression scripts.
+Read the [host side effects](docs/build-test-run.md#prerequisites-and-build-scope)
+before install, build or inventory; all three recursively change build-directory ownership.
 
 ```bash
 # Install (DGX Spark)
@@ -24,7 +26,7 @@ uvx ruff check "${pyfiles[@]}"
 uvx ruff format --check "${pyfiles[@]}"
 bash gb10-cuda/test/test_accel_install_fail_closed.sh
 bash qsfp-cluster/test/test_portable_commands.sh'
-# Run (DGX Spark; writes an inventory report)
+# Run (DGX Spark; prepares directories, runs a CUDA probe and writes a report)
 just -f gb10-cuda/justfile inventory
 ```
 
@@ -55,8 +57,10 @@ git submodule update --init --recursive
 
 ## GB10 CUDA Framework
 
-The `gb10-cuda` subproject is designed to install into `/opt/gb10-cuda` while
-keeping Ubuntu, NVIDIA driver packages, ROS, and `/usr/bin/python3` intact.
+The `gb10-cuda` subproject groups tooling under `/opt/gb10-cuda`. Setup also
+changes system packages, CUDA headers and selected Python environments. Review
+the [prerequisites and side effects](docs/build-test-run.md#prerequisites-and-build-scope)
+before running a recipe; preserving the host baseline is not an installer guarantee.
 
 ```bash
 cd gb10-cuda
