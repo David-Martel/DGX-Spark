@@ -15,6 +15,9 @@ before running it. Its existing TensorRT dry-run pipeline can enter the install
 branch when the simulation fails; inspect the proposed package changes before
 using this installer on a managed driver/CUDA baseline. This documentation
 change does not repair or qualify that installer.
+The [source issue](https://github.com/David-Martel/DGX-Spark/issues/10) and
+[organization issue](https://github.com/vigil-paradigm/DGX-Spark/issues/5) track
+the fail-closed repair and its detecting controls.
 
 The build line runs only the [FFmpeg builder](../gb10-cuda/scripts/build_ffmpeg.sh).
 It needs CUDA and the installed build dependencies, downloads source and writes
