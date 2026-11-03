@@ -8,15 +8,22 @@ projects.
 
 Run these commands from the repository root after [cloning](#clone). Install,
 build and run require a DGX Spark with its NVIDIA drivers and use `sudo`.
-The test command matches the Ruff job in the [lint workflow](.github/workflows/lint.yml).
+The test command runs the Ruff job from the [lint workflow](.github/workflows/lint.yml)
+and the two existing mocked regression scripts.
 
 ```bash
 # Install (DGX Spark)
-just -f gb10-cuda/justfile install-deps install-uv-python
-# Build (DGX Spark)
-just -f gb10-cuda/justfile build-ffmpeg build-opencv
-# Test (CI Ruff job; Linux with uv)
-uvx ruff check qsfp-cluster/lib/*.py && uvx ruff format --check qsfp-cluster/lib/*.py
+just -f gb10-cuda/justfile install-deps
+# Build FFmpeg (DGX Spark; OpenCV has separate SDK prerequisites)
+just -f gb10-cuda/justfile build-ffmpeg
+# Test (CI Ruff job plus local regressions; Linux with uv and Python 3)
+bash -c 'set -euo pipefail
+mapfile -d "" pyfiles < <(git ls-files -z -- "*.py" | grep -zv "^external/")
+test "${#pyfiles[@]}" -gt 0
+uvx ruff check "${pyfiles[@]}"
+uvx ruff format --check "${pyfiles[@]}"
+bash gb10-cuda/test/test_accel_install_fail_closed.sh
+bash qsfp-cluster/test/test_portable_commands.sh'
 # Run (DGX Spark; writes an inventory report)
 just -f gb10-cuda/justfile inventory
 ```
