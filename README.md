@@ -4,7 +4,27 @@ Public development point for DGX Spark / GB10 platform enablement, CUDA media
 and AI tooling, and machine-specific optimization work that can be reused across
 projects.
 
-This repository starts with two surfaces:
+## Install, build, test, run
+
+Run these commands from the repository root after [cloning](#clone). Install,
+build and run require a DGX Spark with its NVIDIA drivers and use `sudo`.
+The test command matches the Ruff job in the [lint workflow](.github/workflows/lint.yml).
+
+```bash
+# Install (DGX Spark)
+just -f gb10-cuda/justfile install-deps install-uv-python
+# Build (DGX Spark)
+just -f gb10-cuda/justfile build-ffmpeg build-opencv
+# Test (CI Ruff job; Linux with uv)
+uvx ruff check qsfp-cluster/lib/*.py && uvx ruff format --check qsfp-cluster/lib/*.py
+# Run (DGX Spark; writes an inventory report)
+just -f gb10-cuda/justfile inventory
+```
+
+The [build and validation guide](docs/build-test-run.md) explains prerequisites,
+the separate ShellCheck job, mocked regression tests and hardware evidence limits.
+
+This repository has three surfaces:
 
 - `gb10-cuda/` - reusable FFmpeg, OpenCV, CUDA, Python, Triton, TensorRT, and
   NVIDIA media-tooling scripts developed on the DGX Spark host.
@@ -54,7 +74,7 @@ just benchmark
 just debug-report
 ```
 
-Read `gb10-cuda/TODO.md` for the current validated state and remaining gap
+Read [the GB10 backlog](gb10-cuda/TODO.md) for the recorded validation and remaining gap
 work. Generated reports are intentionally ignored by Git; publish only sanitized
 summaries.
 
@@ -90,9 +110,11 @@ Do not commit:
 - Large model weights, media corpora, or benchmark inputs unless they are
   explicitly public and licensed for redistribution.
 
-## Current Status
+## Platform history
 
-The local DGX Spark host has validated:
+Earlier GB10 development notes reported the capabilities below. Recheck the
+current host before relying on them; this list does not qualify an installation
+or the VIGIL application. See the [validation limits](docs/build-test-run.md#validation-limits).
 
 - CUDA 13 GB10 media stack
 - FFmpeg with CUDA/NVENC/NVDEC
@@ -106,4 +128,4 @@ The local DGX Spark host has validated:
   wheels, Torch-TensorRT import validation, and FlashAttention smoke checks
 - Riva client package import path
 
-The remaining work is tracked in `gb10-cuda/TODO.md`.
+The remaining work is tracked in [the GB10 backlog](gb10-cuda/TODO.md).
