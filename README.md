@@ -4,7 +4,36 @@ Public development point for DGX Spark / GB10 platform enablement, CUDA media
 and AI tooling, and machine-specific optimization work that can be reused across
 projects.
 
-This repository starts with two surfaces:
+## Install, build, test, run
+
+Run these commands from the repository root after [cloning](#clone). Install,
+build and run require a DGX Spark with its NVIDIA drivers and use `sudo`.
+The test command runs the Ruff job from the [lint workflow](.github/workflows/lint.yml)
+and the two existing mocked regression scripts.
+Read the [host side effects](docs/build-test-run.md#prerequisites-and-build-scope)
+before install, build or inventory; all three recursively change build-directory ownership.
+
+```bash
+# Install (DGX Spark)
+just -f gb10-cuda/justfile install-deps
+# Build FFmpeg (DGX Spark; OpenCV has separate SDK prerequisites)
+just -f gb10-cuda/justfile build-ffmpeg
+# Test (CI Ruff job plus local regressions; Linux with uv and Python 3)
+bash -c 'set -euo pipefail
+mapfile -d "" pyfiles < <(git ls-files -z -- "*.py" | grep -zv "^external/")
+test "${#pyfiles[@]}" -gt 0
+uvx ruff check "${pyfiles[@]}"
+uvx ruff format --check "${pyfiles[@]}"
+bash gb10-cuda/test/test_accel_install_fail_closed.sh
+bash qsfp-cluster/test/test_portable_commands.sh'
+# Run (DGX Spark; prepares directories, runs a CUDA probe and writes a report)
+just -f gb10-cuda/justfile inventory
+```
+
+The [build and validation guide](docs/build-test-run.md) explains prerequisites,
+the separate ShellCheck job, mocked regression tests and hardware evidence limits.
+
+This repository has three surfaces:
 
 - `gb10-cuda/` - reusable FFmpeg, OpenCV, CUDA, Python, Triton, TensorRT, and
   NVIDIA media-tooling scripts developed on the DGX Spark host.
@@ -28,8 +57,10 @@ git submodule update --init --recursive
 
 ## GB10 CUDA Framework
 
-The `gb10-cuda` subproject is designed to install into `/opt/gb10-cuda` while
-keeping Ubuntu, NVIDIA driver packages, ROS, and `/usr/bin/python3` intact.
+The `gb10-cuda` subproject groups tooling under `/opt/gb10-cuda`. Setup also
+changes system packages, CUDA headers and selected Python environments. Review
+the [prerequisites and side effects](docs/build-test-run.md#prerequisites-and-build-scope)
+before running a recipe; preserving the host baseline is not an installer guarantee.
 
 ```bash
 cd gb10-cuda
@@ -54,7 +85,7 @@ just benchmark
 just debug-report
 ```
 
-Read `gb10-cuda/TODO.md` for the current validated state and remaining gap
+Read [the GB10 backlog](gb10-cuda/TODO.md) for the recorded validation and remaining gap
 work. Generated reports are intentionally ignored by Git; publish only sanitized
 summaries.
 
@@ -90,9 +121,11 @@ Do not commit:
 - Large model weights, media corpora, or benchmark inputs unless they are
   explicitly public and licensed for redistribution.
 
-## Current Status
+## Platform history
 
-The local DGX Spark host has validated:
+Earlier GB10 development notes reported the capabilities below. Recheck the
+current host before relying on them; this list does not qualify an installation
+or the VIGIL application. See the [validation limits](docs/build-test-run.md#validation-limits).
 
 - CUDA 13 GB10 media stack
 - FFmpeg with CUDA/NVENC/NVDEC
@@ -106,4 +139,4 @@ The local DGX Spark host has validated:
   wheels, Torch-TensorRT import validation, and FlashAttention smoke checks
 - Riva client package import path
 
-The remaining work is tracked in `gb10-cuda/TODO.md`.
+The remaining work is tracked in [the GB10 backlog](gb10-cuda/TODO.md).
