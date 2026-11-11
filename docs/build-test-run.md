@@ -17,9 +17,10 @@ early pipe closure under `pipefail`. Its result is not a reliable admission
 decision. Run and read `apt-get install -s tensorrt-dev tensorrt-libs libnvinfer-bin`
 separately before considering this recipe: the real installation uses `-y`.
 This documentation change does not repair or qualify that installer.
-The [David-Martel issue](https://github.com/David-Martel/DGX-Spark/issues/10) and
-[vigil-paradigm issue](https://github.com/vigil-paradigm/DGX-Spark/issues/5) track
-the fail-closed repair and its detecting controls.
+The [David-Martel issue](https://github.com/David-Martel/DGX-Spark/issues/10)
+tracks the fail-closed repair and its detecting controls. A twin issue,
+`vigil-paradigm/DGX-Spark#5`, was filed on the organization fork, which is no
+longer reachable; it is kept here as a historical reference only.
 
 All three host commands call [shared setup](../gb10-cuda/scripts/common.sh),
 which creates build directories and recursively changes ownership of all
